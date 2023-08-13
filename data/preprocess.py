@@ -58,7 +58,6 @@ def extract_deepspeech_feature(vid_file, audio_dir, id):
     # os.system(extract_ds_cmd)
     # exit()
 
-
 def get_mp4_files_in_folder(folder_path):
     mp4_files = []
     
@@ -67,7 +66,6 @@ def get_mp4_files_in_folder(folder_path):
             mp4_files.append(file)
     
     return mp4_files
-
 
 def step1(ori_imgs_dir  = './data/HDTF/images', start = 1):
     # 得到对应的视频文件
@@ -135,7 +133,6 @@ def process_video(vid, ori_imgs_dir, index):
     vid_file = f'/data1/dengkaijun/workdirs/DiffTalk/data/HDTF/{vid}.mp4'
     extract_images(vid_file, ori_imgs_dir, index, 1500)
 
-
 def process_image(args):
     image_path, ori_imgs_dir, lmd_dir, fa = args
     if image_path.endswith('.jpg') and not os.path.exists(os.path.join(lmd_dir, image_path[:-3] + 'lms')):
@@ -176,6 +173,8 @@ def step3_multithreaded(video_list=None, audio_dir='./data/HDTF/audio_smooth', s
         vid, i = args
         vid_file = os.path.join(root,f'{vid}.mp4')
         extract_deepspeech_feature(vid_file, audio_dir, i)
+        extract_ds_cmd = 'python data_util/deepspeech_features/extract_ds_features.py --input=' + os.path.join(audio_dir,vid_file)
+        os.system(extract_ds_cmd)
         return vid
 
     args_list = [(vid, i) for i, vid in enumerate(video_list, start)]
@@ -185,8 +184,7 @@ def step3_multithreaded(video_list=None, audio_dir='./data/HDTF/audio_smooth', s
             pbar.set_description(f"Processing '{result}'")
             pbar.update(1)
     
-    # extract_ds_cmd = 'python data_util/deepspeech_features/extract_ds_features.py --input=' + audio_dir
-    # os.system(extract_ds_cmd)
+    # 
 
 
 if __name__ == '__main__':
@@ -197,10 +195,10 @@ if __name__ == '__main__':
     num_workers = 8
     num_gpu = 8
     start = 99
+    
     # test_video_list = step1(ori_imgs_dir, start)
     # step2(ori_imgs_dir, lmd_dir)
-    with open('/data2/dengkaijun/workdirs/DiffTalk/data/test_name.txt', 'r') as f:
-        test_video_list = f.read().splitlines()
-    # test_video_list = step1_multithreaded(ori_imgs_dir,start, num_workers)
-    # step2_multithreaded(ori_imgs_dir, lmd_dir, num_workers, num_gpu)
+
+    test_video_list = step1_multithreaded(ori_imgs_dir,start, num_workers)
+    step2_multithreaded(ori_imgs_dir, lmd_dir, num_workers, num_gpu)
     step3_multithreaded(test_video_list, audio_dir, start, num_workers)
