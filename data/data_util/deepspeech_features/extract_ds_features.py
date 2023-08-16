@@ -97,7 +97,8 @@ def main():
     #add
     deepspeech_pb_path = True
     args.deepspeech = '~/.tensorflow/models/deepspeech-0_1_0-b90017e8.pb'
-    #deepspeech_pb_path="/disk4/keyu/DeepSpeech/deepspeech-0.9.2-models.pbmm"
+    # deepspeech_pb_path="/data2/dengkaijun/workdirs/DiffTalk/data/data_util/deepspeech_features/deepspeech-0.9.2-models.pbmm"
+    # args.deepspeech = deepspeech_pb_path
     if deepspeech_pb_path is None:
         deepspeech_pb_path = ""
     if deepspeech_pb_path:
@@ -119,7 +120,9 @@ def main():
             if file_ext.lower() == ".wav":
                 audio_file_path = os.path.join(in_audio, file_name)
                 audio_file_paths.append(audio_file_path)
-        audio_file_paths = sorted(audio_file_paths)
+        audio_file_paths.sort(key = lambda x:int(os.path.basename(x).split('.')[0]))
+        # audio_file_paths.sort()
+        # print(audio_file_paths)
         out_file_paths = [""] * len(audio_file_paths)
         extract_features(
             in_audios=audio_file_paths,

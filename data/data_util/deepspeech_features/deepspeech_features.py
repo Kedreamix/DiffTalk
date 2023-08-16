@@ -4,7 +4,7 @@
 """
 
 __all__ = ['conv_audios_to_deepspeech']
-
+import os
 import numpy as np
 import warnings
 import resampy
@@ -12,7 +12,7 @@ from scipy.io import wavfile
 from python_speech_features import mfcc
 import tensorflow.compat.v1 as tf
 tf.disable_v2_behavior()
-
+from tqdm import tqdm
 def conv_audios_to_deepspeech(audios,
                               out_files,
                               num_frames_info,
@@ -42,43 +42,91 @@ def conv_audios_to_deepspeech(audios,
         deepspeech_pb_path)
 
     with tf.compat.v1.Session(graph=graph) as sess:
-        for audio_file_path, out_file_path, num_frames in zip(audios, out_files, num_frames_info):
-            # print(audio_file_path)
-            # print(out_file_path)
-            audio_sample_rate, audio = wavfile.read(audio_file_path)
-            if audio.ndim != 1:
-                warnings.warn(
-                    "Audio has multiple channels, the first channel is used")
-                audio = audio[:, 0]
-            ds_features = pure_conv_audio_to_deepspeech(
-                audio=audio,
-                audio_sample_rate=audio_sample_rate,
-                audio_window_size=audio_window_size,
-                audio_window_stride=audio_window_stride,
-                num_frames=num_frames,
-                net_fn=lambda x: sess.run(
-                    logits_ph,
-                    feed_dict={
-                        input_node_ph: x[np.newaxis, ...],
-                        input_lengths_ph: [x.shape[0]]}))
+        if len(audios) > 1:
+            with tqdm(total = len(audios)) as pbar:
+                for audio_file_path, out_file_path, num_frames in zip(audios, out_files, num_frames_info):
+                    # print(audio_file_path)
+                    # print(out_file_path)
+                    pbar.update(1)
+                    pbar.set_description(f"Progress: {os.path.basename(audio_file_path)}")
+                    if os.path.exists(out_file_path):
+                        continue
+                    audio_sample_rate, audio = wavfile.read(audio_file_path)
+                    if audio.ndim != 1:
+                        warnings.warn(
+                            "Audio has multiple channels, the first channel is used")
+                        audio = audio[:, 0]
+                    ds_features = pure_conv_audio_to_deepspeech(
+                        audio=audio,
+                        audio_sample_rate=audio_sample_rate,
+                        audio_window_size=audio_window_size,
+                        audio_window_stride=audio_window_stride,
+                        num_frames=num_frames,
+                        net_fn=lambda x: sess.run(
+                            logits_ph,
+                            feed_dict={
+                                input_node_ph: x[np.newaxis, ...],
+                                input_lengths_ph: [x.shape[0]]}))
 
-            net_output = ds_features.reshape(-1, 29)
-            win_size = 16
-            zero_pad = np.zeros((int(win_size / 2), net_output.shape[1]))
-            net_output = np.concatenate(
-                (zero_pad, net_output, zero_pad), axis=0)
-            windows = []
-            for window_index in range(0, net_output.shape[0] - win_size, 2):
-                windows.append(
-                    net_output[window_index:window_index + win_size])
-            print(np.array(windows).shape, np.array(windows).shape[0]//8)
-            print(out_file_path)
-            np.save(out_file_path, np.array(windows))
-            for i,x in enumerate(range(0, np.array(windows).shape[0], 8)):
-                out_file_path_i = out_file_path[:-4] + '_' + str(i) + '.npy'
-                # print(out_file_path_i)
-                # print(np.array(windows)[x:x+8,:,:].shape)
-                np.save(out_file_path_i, np.array(windows)[x:x+8,:,:])
+                    net_output = ds_features.reshape(-1, 29)
+                    win_size = 16
+                    zero_pad = np.zeros((int(win_size / 2), net_output.shape[1]))
+                    net_output = np.concatenate(
+                        (zero_pad, net_output, zero_pad), axis=0)
+                    windows = []
+                    for window_index in range(0, net_output.shape[0] - win_size, 2):
+                        windows.append(
+                            net_output[window_index:window_index + win_size])
+                    # print(np.array(windows).shape, np.array(windows).shape[0]//8)
+                    # print(out_file_path)
+                    np.save(out_file_path, np.array(windows))
+                    for i,x in tqdm(enumerate(range(0, np.array(windows).shape[0], 8)), total = np.array(windows).shape[0]//8, leave = False):
+                        out_file_path_i = out_file_path[:-4] + '_' + str(i) + '.npy'
+                        # print(out_file_path_i)
+                        # print(np.array(windows)[x:x+8,:,:].shape)
+                        np.save(out_file_path_i, np.array(windows)[x:x+8,:,:])
+        else:
+            for audio_file_path, out_file_path, num_frames in zip(audios, out_files, num_frames_info):
+                # print(audio_file_path)
+                # print(out_file_path)
+                # pbar.set_description(f"Progress: {os.path.basename(audio_file_path)}")
+                # if os.path.exists(out_file_path):
+                #     continue
+                audio_sample_rate, audio = wavfile.read(audio_file_path)
+                if audio.ndim != 1:
+                    warnings.warn(
+                        "Audio has multiple channels, the first channel is used")
+                    audio = audio[:, 0]
+                ds_features = pure_conv_audio_to_deepspeech(
+                    audio=audio,
+                    audio_sample_rate=audio_sample_rate,
+                    audio_window_size=audio_window_size,
+                    audio_window_stride=audio_window_stride,
+                    num_frames=num_frames,
+                    net_fn=lambda x: sess.run(
+                        logits_ph,
+                        feed_dict={
+                            input_node_ph: x[np.newaxis, ...],
+                            input_lengths_ph: [x.shape[0]]}))
+
+                net_output = ds_features.reshape(-1, 29)
+                win_size = 16
+                zero_pad = np.zeros((int(win_size / 2), net_output.shape[1]))
+                net_output = np.concatenate(
+                    (zero_pad, net_output, zero_pad), axis=0)
+                windows = []
+                for window_index in range(0, net_output.shape[0] - win_size, 2):
+                    windows.append(
+                        net_output[window_index:window_index + win_size])
+                print(np.array(windows).shape, np.array(windows).shape[0]//8)
+                # print(out_file_path)
+                np.save(out_file_path, np.array(windows))
+                for i,x in tqdm(enumerate(range(0, np.array(windows).shape[0], 8)), total = np.array(windows).shape[0]//8):
+                    out_file_path_i = out_file_path[:-4] + '_' + str(i) + '.npy'
+                    # print(out_file_path_i)
+                    # print(np.array(windows)[x:x+8,:,:].shape)
+                    np.save(out_file_path_i, np.array(windows)[x:x+8,:,:])
+                    
 
 
 def prepare_deepspeech_net(deepspeech_pb_path):
@@ -162,7 +210,7 @@ def pure_conv_audio_to_deepspeech(audio,
     # print(network_output.shape)
 
     deepspeech_fps = 50
-    video_fps = 30  # Change this option if video fps is different
+    video_fps = 25  # Change this option if video fps is different
     audio_len_s = float(audio.shape[0]) / audio_sample_rate
     if num_frames is None:
         num_frames = int(round(audio_len_s * video_fps))
