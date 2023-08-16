@@ -10,7 +10,7 @@ import random
 import threading
 from multiprocessing import Pool
 from concurrent.futures import ThreadPoolExecutor
-
+import subprocess
 def extract_images(vid_file,ori_imgs_dir,id=None,frame_total=None):
     # print('--- Step1: extract images from vids ---')
     cap = cv2.VideoCapture(vid_file)
@@ -20,9 +20,9 @@ def extract_images(vid_file,ori_imgs_dir,id=None,frame_total=None):
         if frame is None:
             break
         if id:
-            cv2.imwrite(os.path.join(ori_imgs_dir, str(id) + '_' + str(frame_num) + '.jpg'), frame)
+            cv2.imwrite(os.path.join(ori_imgs_dir, id + '_' + str(frame_num) + '.jpg'), frame)
         else:
-            cv2.imwrite(os.path.join(ori_imgs_dir, str(id) + '_' + str(frame_num) + '.jpg'), frame)
+            cv2.imwrite(os.path.join(ori_imgs_dir, id + '_' + str(frame_num) + '.jpg'), frame)
         frame_num = frame_num + 1
         if frame_total:
             if frame_num >= frame_total:
@@ -52,7 +52,7 @@ def detect_lands(ori_imgs_dir, lmd_dir):
 def extract_deepspeech_feature(vid_file, audio_dir, id): 
     wav_file = os.path.join(audio_dir, f'{str(id)}.wav')
     if not os.path.exists(wav_file):
-        extract_wav_cmd = 'ffmpeg -loglevel quiet -i ' + vid_file + ' -ss 0 -t 50 -f wav -ar 16000 ' + wav_file
+        extract_wav_cmd = 'ffmpeg -loglevel quiet -i ' + vid_file + f' -ss 0 -t {1500//25} -f wav -ar 16000 ' + wav_file
         os.system(extract_wav_cmd)
     # extract_ds_cmd = 'python data_util/deepspeech_features/extract_ds_features.py --input=' + audio_dir
     # os.system(extract_ds_cmd)
@@ -60,7 +60,7 @@ def extract_deepspeech_feature(vid_file, audio_dir, id):
 
 def get_mp4_files_in_folder(folder_path):
     mp4_files = []
-    
+    print(os.path.join(folder_path, '*.mp4'))
     for file in glob.glob(os.path.join(folder_path, '*.mp4')):
         if os.path.isfile(file):
             mp4_files.append(file)
@@ -93,33 +93,10 @@ def step1(ori_imgs_dir  = './data/HDTF/images', start = 1):
             pbar.update(1)
     return video_list
 
-def step1_multithreaded(ori_imgs_dir='./data/HDTF/images', start=1, num_threads=4):
-    with open('test_name.txt', 'r') as f:
-        video_list = f.read().splitlines()
-
-    # def process_range(start_idx, end_idx):
-    #     with tqdm(total=end_idx - start_idx) as pbar:
-    #         for i in range(start_idx, end_idx):
-    #             pbar.set_description(f"Processing '{video_list[i]}'")
-    #             process_video(video_list[i], ori_imgs_dir, i + start)
-    #             pbar.update(1)
-    
-    # thread_list = []
-    # videos_per_thread = len(video_list) // num_threads
-
-    # for i in range(num_threads):
-    #     start_idx = i * videos_per_thread
-    #     end_idx = start_idx + videos_per_thread if i != num_threads - 1 else len(video_list)
-    #     thread = threading.Thread(target=process_range, args=(start_idx, end_idx))
-    #     thread_list.append(thread)
-    #     thread.start()
-
-    # for thread in thread_list:
-    #     thread.join()
-    
+def step1_multithreaded(video_dir = None, ori_imgs_dir='./data/HDTF/images',  num_threads=4):
+    video_list = get_mp4_files_in_folder(video_dir)
     def process_video(vid):
-        vid_file = f'/data1/dengkaijun/workdirs/DiffTalk/data/HDTF/{vid}.mp4'
-        extract_images(vid_file, ori_imgs_dir, start, 1500)
+        extract_images(vid, ori_imgs_dir, os.path.basename(vid).split('.')[0], 1500)
         return vid
 
     with ThreadPoolExecutor(max_workers=num_threads) as executor, tqdm(total=len(video_list)) as pbar:
@@ -141,6 +118,7 @@ def process_image(args):
         if len(preds) > 0:
             lands = preds[0].reshape(-1, 2)[:,:2]
             np.savetxt(os.path.join(lmd_dir, image_path[:-3] + 'lms'), lands, '%f')
+    return os.path.basename(image_path)
 
 # 多线程
 def detect_lands_multithreaded(ori_imgs_dir, lmd_dir, num_threads = 4, num_gpu = 4):
@@ -152,7 +130,8 @@ def detect_lands_multithreaded(ori_imgs_dir, lmd_dir, num_threads = 4, num_gpu =
     args_list = [(image_path, ori_imgs_dir, lmd_dir, fa_list[i % num_gpu]) for i, image_path in enumerate(image_list)]
 
     with ThreadPoolExecutor(max_workers=num_threads) as executor, tqdm(total=len(image_list)) as pbar:
-        for _ in executor.map(process_image, args_list):
+        for result in executor.map(process_image, args_list):
+            pbar.set_description(f"Processing '{result}'")
             pbar.update(1)
 
 def step2(ori_imgs_dir  = './data/HDTF/images',
@@ -167,38 +146,44 @@ def step2_multithreaded(ori_imgs_dir  = './data/HDTF/images',
                         num_gpu = 1):
     detect_lands_multithreaded(ori_imgs_dir, lmd_dir, num_processes, num_gpu)
       
-def step3_multithreaded(video_list=None, audio_dir='./data/HDTF/audio_smooth', start=1, num_threads=4):
+def step3_multithreaded(video_dir=None, audio_dir='./data/HDTF/audio_smooth', start=1, end =1, num_threads=4):
     print('--- Step3: extract deepspeech feature ---')
-    def process_video(args):
-        vid, i = args
-        vid_file = os.path.join(root,f'{vid}.mp4')
-        extract_deepspeech_feature(vid_file, audio_dir, i)
-        extract_ds_cmd = 'python data_util/deepspeech_features/extract_ds_features.py --input=' + os.path.join(audio_dir,vid_file)
-        os.system(extract_ds_cmd)
-        return vid
+    def process_video(id):
 
-    args_list = [(vid, i) for i, vid in enumerate(video_list, start)]
+        vid_file = os.path.join(video_dir,f'{str(id)}.mp4')
+        extract_deepspeech_feature(vid_file, audio_dir, id)
+        # extract_ds_cmd = [
+        #     'CUDA_VISIBLE_DEVICES=' + str(gpu),
+        #     '/data2/dengkaijun/anaconda3/envs/tf/bin/python',
+        #     'data_util/deepspeech_features/extract_ds_features.py',
+        #     '--input=' + os.path.join(audio_dir, vid_file)
+        #     ]
 
-    with ThreadPoolExecutor(max_workers=num_threads) as executor, tqdm(total=len(video_list)) as pbar:
+        # subprocess.run(' '.join(extract_ds_cmd), shell=True)
+        return str(id) + '.mp4'
+
+    # args_list = [(vid, i) for i, vid in enumerate(video_list, start)]
+    args_list = [i for i in range(start,end+1)]
+
+    with ThreadPoolExecutor(max_workers=num_threads) as executor, tqdm(total=len(args_list)) as pbar:
         for result in executor.map(process_video, args_list):
             pbar.set_description(f"Processing '{result}'")
             pbar.update(1)
     
-    # 
+    extract_ds_cmd = f'CUDA_VISIBLE_DEVICES=1 /data2/dengkaijun/anaconda3/envs/tf/bin/python data_util/deepspeech_features/extract_ds_features.py --input=' + audio_dir
+    os.system(extract_ds_cmd)
 
 
 if __name__ == '__main__':
     root = '/data2/dengkaijun/workdirs/DiffTalk/data/HDTF'
+    video_dir = os.path.join(root,'videos')
     ori_imgs_dir  = os.path.join(root,'images')
     lmd_dir = os.path.join(root,'landmarks')
     audio_dir = os.path.join(root,'audio_smooth')
     num_workers = 8
     num_gpu = 8
-    start = 99
-    
-    # test_video_list = step1(ori_imgs_dir, start)
-    # step2(ori_imgs_dir, lmd_dir)
-
-    test_video_list = step1_multithreaded(ori_imgs_dir,start, num_workers)
+    start = 1
+    end = 248
+    video_list = step1_multithreaded(video_dir, ori_imgs_dir, num_workers*2)
     step2_multithreaded(ori_imgs_dir, lmd_dir, num_workers, num_gpu)
-    step3_multithreaded(test_video_list, audio_dir, start, num_workers)
+    step3_multithreaded(video_dir, audio_dir, start, end, num_workers)
