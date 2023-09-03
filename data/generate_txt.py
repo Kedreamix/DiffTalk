@@ -2,7 +2,7 @@ import os
 from tqdm import tqdm
 
 # 指定文件夹路径和输出文件名
-root = '/data2/dengkaijun/workdirs/DiffTalk/data/HDTF'
+root = './data/HDTF'
 folder_path = os.path.join(root,'audio_smooth')
 train_output_file = 'data_train.txt'
 test_output_file = 'data_test.txt'

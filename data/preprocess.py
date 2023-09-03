@@ -107,7 +107,7 @@ def step1_multithreaded(video_dir = None, ori_imgs_dir='./data/HDTF/images',  nu
     return video_list
 
 def process_video(vid, ori_imgs_dir, index):
-    vid_file = f'/data1/dengkaijun/workdirs/DiffTalk/data/HDTF/{vid}.mp4'
+    vid_file = f'./data/HDTF/{vid}.mp4'
     extract_images(vid_file, ori_imgs_dir, index, 1500)
 
 def process_image(args):
@@ -170,12 +170,12 @@ def step3_multithreaded(video_dir=None, audio_dir='./data/HDTF/audio_smooth', st
             pbar.set_description(f"Processing '{result}'")
             pbar.update(1)
     
-    extract_ds_cmd = f'CUDA_VISIBLE_DEVICES=1 /data2/dengkaijun/anaconda3/envs/tf/bin/python data_util/deepspeech_features/extract_ds_features.py --input=' + audio_dir
+    extract_ds_cmd = f'python data_util/deepspeech_features/extract_ds_features.py --input=' + audio_dir
     os.system(extract_ds_cmd)
 
 
 if __name__ == '__main__':
-    root = '/data2/dengkaijun/workdirs/DiffTalk/data/HDTF'
+    root = './data/HDTF'
     video_dir = os.path.join(root,'videos')
     ori_imgs_dir  = os.path.join(root,'images')
     lmd_dir = os.path.join(root,'landmarks')
