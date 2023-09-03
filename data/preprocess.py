@@ -176,9 +176,9 @@ def step3_multithreaded(video_dir=None, audio_dir='../data/HDTF/audio_smooth', s
 if __name__ == '__main__':
     root = '../data/HDTF'
     video_dir = os.path.join(root,'videos')
-    ori_imgs_dir  = os.path.join(root,'images2')
-    lmd_dir = os.path.join(root,'landmarks2')
-    audio_dir = os.path.join(root,'audio_smooth2')
+    ori_imgs_dir  = os.path.join(root,'images')
+    lmd_dir = os.path.join(root,'landmarks')
+    audio_dir = os.path.join(root,'audio_smooth')
     
     os.makedirs(video_dir, exist_ok = True)
     os.makedirs(ori_imgs_dir, exist_ok = True)
