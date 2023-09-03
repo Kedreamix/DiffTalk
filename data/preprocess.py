@@ -1,4 +1,3 @@
-import enum
 import cv2
 import os
 import numpy as np
@@ -67,7 +66,7 @@ def get_mp4_files_in_folder(folder_path):
     
     return mp4_files
 
-def step1(ori_imgs_dir  = './data/HDTF/images', start = 1):
+def step1(ori_imgs_dir  = '../data/HDTF/images', start = 1):
     # 得到对应的视频文件
     # all_videos= get_mp4_files_in_folder('/data1/dengkaijun/workdirs/DiffTalk/data/HDTF')
     # all_videos_list = [os.path.basename(vid).split(".")[0] for vid in all_videos]
@@ -93,7 +92,7 @@ def step1(ori_imgs_dir  = './data/HDTF/images', start = 1):
             pbar.update(1)
     return video_list
 
-def step1_multithreaded(video_dir = None, ori_imgs_dir='./data/HDTF/images',  num_threads=4):
+def step1_multithreaded(video_dir = None, ori_imgs_dir='../data/HDTF/images',  num_threads=4):
     video_list = get_mp4_files_in_folder(video_dir)
     def process_video(vid):
         extract_images(vid, ori_imgs_dir, os.path.basename(vid).split('.')[0], 1500)
@@ -107,7 +106,7 @@ def step1_multithreaded(video_dir = None, ori_imgs_dir='./data/HDTF/images',  nu
     return video_list
 
 def process_video(vid, ori_imgs_dir, index):
-    vid_file = f'./data/HDTF/{vid}.mp4'
+    vid_file = f'../data/HDTF/{vid}.mp4'
     extract_images(vid_file, ori_imgs_dir, index, 1500)
 
 def process_image(args):
@@ -134,19 +133,19 @@ def detect_lands_multithreaded(ori_imgs_dir, lmd_dir, num_threads = 4, num_gpu =
             pbar.set_description(f"Processing '{result}'")
             pbar.update(1)
 
-def step2(ori_imgs_dir  = './data/HDTF/images',
-          lmd_dir = './data/HDTF/landmarks',
+def step2(ori_imgs_dir  = '../data/HDTF/images',
+          lmd_dir = '../data/HDTF/landmarks',
           ):
     # 提取关键点
     detect_lands(ori_imgs_dir, lmd_dir)
     
-def step2_multithreaded(ori_imgs_dir  = './data/HDTF/images',
-                        lmd_dir = './data/HDTF/landmarks',
+def step2_multithreaded(ori_imgs_dir  = '../data/HDTF/images',
+                        lmd_dir = '../data/HDTF/landmarks',
                         num_processes = 4,
                         num_gpu = 1):
     detect_lands_multithreaded(ori_imgs_dir, lmd_dir, num_processes, num_gpu)
       
-def step3_multithreaded(video_dir=None, audio_dir='./data/HDTF/audio_smooth', start=1, end =1, num_threads=4):
+def step3_multithreaded(video_dir=None, audio_dir='../data/HDTF/audio_smooth', start=1, end =1, num_threads=4):
     print('--- Step3: extract deepspeech feature ---')
     def process_video(id):
 
@@ -175,15 +174,21 @@ def step3_multithreaded(video_dir=None, audio_dir='./data/HDTF/audio_smooth', st
 
 
 if __name__ == '__main__':
-    root = './data/HDTF'
+    root = '../data/HDTF'
     video_dir = os.path.join(root,'videos')
-    ori_imgs_dir  = os.path.join(root,'images')
-    lmd_dir = os.path.join(root,'landmarks')
-    audio_dir = os.path.join(root,'audio_smooth')
-    num_workers = 8
-    num_gpu = 8
+    ori_imgs_dir  = os.path.join(root,'images2')
+    lmd_dir = os.path.join(root,'landmarks2')
+    audio_dir = os.path.join(root,'audio_smooth2')
+    
+    os.makedirs(video_dir, exist_ok = True)
+    os.makedirs(ori_imgs_dir, exist_ok = True)
+    os.makedirs(lmd_dir, exist_ok = True)
+    os.makedirs(audio_dir, exist_ok = True)
+    
+    num_workers = 1
+    num_gpu = 1
     start = 1
-    end = 248
+    end = 2
     video_list = step1_multithreaded(video_dir, ori_imgs_dir, num_workers*2)
     step2_multithreaded(ori_imgs_dir, lmd_dir, num_workers, num_gpu)
     step3_multithreaded(video_dir, audio_dir, start, end, num_workers)

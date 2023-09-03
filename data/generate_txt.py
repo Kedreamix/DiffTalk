@@ -2,12 +2,12 @@ import os
 from tqdm import tqdm
 
 # 指定文件夹路径和输出文件名
-root = './data/HDTF'
+root = '../data/HDTF'
 folder_path = os.path.join(root,'audio_smooth')
-train_output_file = 'data_train.txt'
-test_output_file = 'data_test.txt'
+train_output_file = 'my_data_train.txt'
+test_output_file = 'my_data_test.txt'
 
-# 获取文件夹中的图片文件列表
+# 获取文件夹中的文件列表
 files = [file for file in tqdm(os.listdir(folder_path)) if file.lower().endswith(('npy')) and '_' in file]
 
 # 对文件名进行排序
@@ -24,7 +24,7 @@ for file in tqdm(sorted_files):
 
 print(max_numbers)
 # 将每个前缀的最大数字写入文件
-with open('data.txt', 'w') as f:
+with open(os.path.join(root, 'my_data.txt') , 'w') as f:
     for prefix, max_number in max_numbers.items():
         f.write(f"{prefix} {max_number}\n")
 

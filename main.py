@@ -140,7 +140,7 @@ def nondefault_trainer_args(opt):
 
 
 class WrappedDataset(Dataset):
-    """Wraps an arbitrary object with __len__ and __getitem__ into a pytorch dataset"""
+    """将具有__len__和__getitem__的任意对象包装成PyTorch数据集"""
 
     def __init__(self, dataset):
         self.data = dataset
@@ -191,6 +191,7 @@ class DataModuleFromConfig(pl.LightningDataModule):
         self.wrap = wrap
 
     def prepare_data(self):
+        # 遍历dataset_configs字典中的数据配置，实例化数据集对象
         for data_cfg in self.dataset_configs.values():
             instantiate_from_config(data_cfg)
 
@@ -244,46 +245,46 @@ class DataModuleFromConfig(pl.LightningDataModule):
         return DataLoader(self.datasets["predict"], batch_size=self.batch_size,
                           num_workers=self.num_workers, worker_init_fn=init_fn)
 
-
 class SetupCallback(Callback):
     def __init__(self, resume, now, logdir, ckptdir, cfgdir, config, lightning_config):
         super().__init__()
-        self.resume = resume
-        self.now = now
-        self.logdir = logdir
-        self.ckptdir = ckptdir
-        self.cfgdir = cfgdir
-        self.config = config
-        self.lightning_config = lightning_config
+        self.resume = resume  # 是否继续训练的标志
+        self.now = now  # 当前时间
+        self.logdir = logdir  # 日志保存路径
+        self.ckptdir = ckptdir  # 检查点保存路径
+        self.cfgdir = cfgdir  # 配置文件保存路径
+        self.config = config  # 项目配置
+        self.lightning_config = lightning_config  # Lightning配置
 
     def on_keyboard_interrupt(self, trainer, pl_module):
         if trainer.global_rank == 0:
-            print("Summoning checkpoint.")
-            ckpt_path = os.path.join(self.ckptdir, "last.ckpt")
-            trainer.save_checkpoint(ckpt_path)
+            print("Summoning checkpoint.")  # 打印提示信息
+            ckpt_path = os.path.join(self.ckptdir, "last.ckpt")  # 检查点保存路径
+            trainer.save_checkpoint(ckpt_path)  # 保存检查点
 
     def on_pretrain_routine_start(self, trainer, pl_module):
         if trainer.global_rank == 0:
-            # Create logdirs and save configs
+            # 创建日志、检查点和配置文件保存路径
             os.makedirs(self.logdir, exist_ok=True)
             os.makedirs(self.ckptdir, exist_ok=True)
             os.makedirs(self.cfgdir, exist_ok=True)
-
+            
             if "callbacks" in self.lightning_config:
                 if 'metrics_over_trainsteps_checkpoint' in self.lightning_config['callbacks']:
+                    # 创建训练步骤检查点保存路径
                     os.makedirs(os.path.join(self.ckptdir, 'trainstep_checkpoints'), exist_ok=True)
-            print("Project config")
-            print(OmegaConf.to_yaml(self.config))
+            print("Project config")  # 打印提示信息
+            print(OmegaConf.to_yaml(self.config))  # 打印项目配置
             OmegaConf.save(self.config,
-                           os.path.join(self.cfgdir, "{}-project.yaml".format(self.now)))
+                           os.path.join(self.cfgdir, "{}-project.yaml".format(self.now)))  # 保存项目配置
 
-            print("Lightning config")
-            print(OmegaConf.to_yaml(self.lightning_config))
+            print("Lightning config")  # 打印提示信息
+            print(OmegaConf.to_yaml(self.lightning_config))  # 打印Lightning配置
             OmegaConf.save(OmegaConf.create({"lightning": self.lightning_config}),
-                           os.path.join(self.cfgdir, "{}-lightning.yaml".format(self.now)))
+                           os.path.join(self.cfgdir, "{}-lightning.yaml".format(self.now)))  # 保存Lightning配置
 
         else:
-            # ModelCheckpoint callback created log directory --- remove it
+            # ModelCheckpoint回调创建了日志保存路径 --- 删除它
             if not self.resume and os.path.exists(self.logdir):
                 dst, name = os.path.split(self.logdir)
                 dst = os.path.join(dst, "child_runs", name)
@@ -293,11 +294,23 @@ class SetupCallback(Callback):
                 except FileNotFoundError:
                     pass
 
-
 class ImageLogger(Callback):
     def __init__(self, batch_frequency, max_images, clamp=True, increase_log_steps=True,
                  rescale=True, disabled=False, log_on_batch_idx=False, log_first_step=False,
                  log_images_kwargs=None):
+        '''
+        初始化ImageLogger回调函数的实例。
+        参数：
+            - batch_frequency：记录图像的频率，即每隔多少个批次记录一次图像。
+            - max_images：每个批次中要记录的最大图像数。
+            - clamp：是否将图像像素值限制在-1到1之间。
+            - increase_log_steps：是否增加记录图像的步骤。
+            - rescale：是否对图像进行重新缩放。
+            - disabled：是否禁用ImageLogger回调函数。
+            - log_on_batch_idx：是否根据批次索引记录图像。
+            - log_first_step：是否在第一步记录图像。
+            - log_images_kwargs：记录图像时的额外参数。
+        '''
         super().__init__()
         self.rescale = rescale
         self.batch_freq = batch_frequency
@@ -316,9 +329,18 @@ class ImageLogger(Callback):
 
     @rank_zero_only
     def _testtube(self, pl_module, images, batch_idx, split):
+        '''
+        TestTubeLogger日志记录器的图像记录方法。
+        将图像转换为网格，并将其添加到实验中。
+        参数：
+            - pl_module：当前的Lightning模块。
+            - images：要记录的图像字典。
+            - batch_idx：当前批次索引。
+            - split：图像所属的数据集分割。
+        '''
         for k in images:
             grid = torchvision.utils.make_grid(images[k])
-            grid = (grid + 1.0) / 2.0  # -1,1 -> 0,1; c,h,w
+            grid = (grid + 1.0) / 2.0  # 将像素值从-1，1映射到0，1；c,h,w
 
             tag = f"{split}/{k}"
             pl_module.logger.experiment.add_image(
@@ -328,11 +350,22 @@ class ImageLogger(Callback):
     @rank_zero_only
     def log_local(self, save_dir, split, images,
                   global_step, current_epoch, batch_idx):
+        '''
+        本地图像记录方法。
+        将图像保存到本地文件夹中。
+        参数：
+            - save_dir：保存图像的根目录。
+            - split：图像所属的数据集分割。
+            - images：要记录的图像字典。
+            - global_step：当前全局步数。
+            - current_epoch：当前训练轮数。
+            - batch_idx：当前批次索引。
+        '''
         root = os.path.join(save_dir, "images", split)
         for k in images:
             grid = torchvision.utils.make_grid(images[k], nrow=4)
             if self.rescale:
-                grid = (grid + 1.0) / 2.0  # -1,1 -> 0,1; c,h,w
+                grid = (grid + 1.0) / 2.0  # 将像素值从-1，1映射到0，1；c,h,w
             grid = grid.transpose(0, 1).transpose(1, 2).squeeze(-1)
             grid = grid.numpy()
             grid = (grid * 255).astype(np.uint8)
@@ -346,8 +379,17 @@ class ImageLogger(Callback):
             Image.fromarray(grid).save(path)
 
     def log_img(self, pl_module, batch, batch_idx, split="train"):
+        '''
+        记录图像的方法。
+        检查是否满足记录图像的条件，并调用其他方法记录图像。
+        参数：
+            - pl_module：当前的Lightning模块。
+            - batch：当前批次数据。
+            - batch_idx：当前批次索引。
+            - split：图像所属的数据集分割，默认为"train"。
+        '''
         check_idx = batch_idx if self.log_on_batch_idx else pl_module.global_step
-        if (self.check_frequency(check_idx) and  # batch_idx % self.batch_freq == 0
+        if (self.check_frequency(check_idx) and  # 检查是否满足记录图像的频率要求
                 hasattr(pl_module, "log_images") and
                 callable(pl_module.log_images) and
                 self.max_images > 0):
@@ -378,6 +420,13 @@ class ImageLogger(Callback):
                 pl_module.train()
 
     def check_frequency(self, check_idx):
+        '''
+        检查记录图像的频率。
+        参数：
+            - check_idx：当前检查的步数。
+        返回：
+            - 是否满足记录图像的频率要求。
+        '''
         if ((check_idx % self.batch_freq) == 0 or (check_idx in self.log_steps)) and (
                 check_idx > 0 or self.log_first_step):
             try:
@@ -389,37 +438,67 @@ class ImageLogger(Callback):
         return False
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+        '''
+        在训练批次结束时调用的方法。
+        检查是否满足记录图像的条件，并记录训练集图像。
+        参数：
+            - trainer：当前的训练器。
+            - pl_module：当前的Lightning模块。
+            - outputs：当前批次的输出。
+            - batch：当前批次数据。
+            - batch_idx：当前批次索引。
+            - dataloader_idx：当前数据加载器索引。
+        '''
         if not self.disabled and (pl_module.global_step > 0 or self.log_first_step):
             self.log_img(pl_module, batch, batch_idx, split="train")
 
     def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+        '''
+        在验证批次结束时调用的方法。
+        检查是否满足记录图像的条件，并记录验证集图像。
+        如果模块具有calibrate_grad_norm属性且满足条件，则记录梯度。
+        参数：
+            - trainer：当前的训练器。
+            - pl_module：当前的Lightning模块。
+            - outputs：当前批次的输出。
+            - batch：当前批次数据。
+            - batch_idx：当前批次索引。
+            - dataloader_idx：当前数据加载器索引。
+        '''
         if not self.disabled and pl_module.global_step > 0:
             self.log_img(pl_module, batch, batch_idx, split="val")
         if hasattr(pl_module, 'calibrate_grad_norm'):
             if (pl_module.calibrate_grad_norm and batch_idx % 25 == 0) and batch_idx > 0:
                 self.log_gradients(trainer, pl_module, batch_idx=batch_idx)
 
-
 class CUDACallback(Callback):
     def on_train_epoch_start(self, trainer, pl_module):
-        # Reset the memory use counter
-        torch.cuda.reset_peak_memory_stats(trainer.root_gpu)
-        torch.cuda.synchronize(trainer.root_gpu)
-        self.start_time = time.time()
+        '''
+        在每个训练轮开始时的回调函数。
+        重置内存使用计数器，同步GPU，记录开始时间。
+        '''
+        torch.cuda.reset_peak_memory_stats(trainer.root_gpu)  # 重置内存使用计数器
+        torch.cuda.synchronize(trainer.root_gpu)  # 同步GPU
+        self.start_time = time.time()  # 记录开始时间
 
     def on_train_epoch_end(self, trainer, pl_module, outputs):
-        torch.cuda.synchronize(trainer.root_gpu)
-        max_memory = torch.cuda.max_memory_allocated(trainer.root_gpu) / 2 ** 20
-        epoch_time = time.time() - self.start_time
+        '''
+        在每个训练轮结束时的回调函数。
+        同步GPU，计算最大内存使用量和训练轮时间。
+        如果使用了分布式训练，则进行全局归约，并打印平均训练轮时间和最大内存使用量。
+        '''
+        torch.cuda.synchronize(trainer.root_gpu)  # 同步GPU
+        max_memory = torch.cuda.max_memory_allocated(trainer.root_gpu) / 2 ** 20  # 计算最大内存使用量（以MiB为单位）
+        epoch_time = time.time() - self.start_time  # 计算训练轮时间
 
         try:
-            max_memory = trainer.training_type_plugin.reduce(max_memory)
-            epoch_time = trainer.training_type_plugin.reduce(epoch_time)
+            max_memory = trainer.training_type_plugin.reduce(max_memory)  # 进行全局归约，得到最大内存使用量
+            epoch_time = trainer.training_type_plugin.reduce(epoch_time)  # 进行全局归约，得到训练轮时间
 
-            rank_zero_info(f"Average Epoch time: {epoch_time:.2f} seconds")
-            rank_zero_info(f"Average Peak memory {max_memory:.2f}MiB")
+            rank_zero_info(f"Average Epoch time: {epoch_time:.2f} seconds")  # 打印平均训练轮时间
+            rank_zero_info(f"Average Peak memory {max_memory:.2f}MiB")  # 打印最大内存使用量
         except AttributeError:
-            pass
+            pass  # 如果没有使用分布式训练，则跳过归约和打印操作
 
 
 if __name__ == "__main__":
@@ -472,7 +551,7 @@ if __name__ == "__main__":
     sys.path.append(os.getcwd())
 
     parser = get_parser()
-    parser = Trainer.add_argparse_args(parser)
+    parser = Trainer.add_argparse_args(parser) # 加入参数
 
     opt, unknown = parser.parse_known_args()
     if opt.name and opt.resume:
@@ -509,33 +588,34 @@ if __name__ == "__main__":
             name = ""
         nowname = now + name + opt.postfix
         logdir = os.path.join(opt.logdir, nowname)
-
+    # 定义保存路径
     ckptdir = os.path.join(logdir, "checkpoints")
     cfgdir = os.path.join(logdir, "configs")
-    seed_everything(opt.seed)
+    seed_everything(opt.seed) # 设置随机数
 
     try:
         # init and save configs
-        configs = [OmegaConf.load(cfg) for cfg in opt.base]
-        cli = OmegaConf.from_dotlist(unknown)
-        config = OmegaConf.merge(*configs, cli)
-        lightning_config = config.pop("lightning", OmegaConf.create())
-        trainer_config = lightning_config.get("trainer", OmegaConf.create())
-        trainer_config["accelerator"] = "ddp"
-        for k in nondefault_trainer_args(opt):
-            trainer_config[k] = getattr(opt, k)
-        if not "gpus" in trainer_config:
-            del trainer_config["accelerator"]
-            cpu = True
+        configs = [OmegaConf.load(cfg) for cfg in opt.base]  # 加载配置文件列表
+        cli = OmegaConf.from_dotlist(unknown)  # 创建命令行配置对象
+        config = OmegaConf.merge(*configs, cli)  # 合并配置文件和命令行配置
+        lightning_config = config.pop("lightning", OmegaConf.create())  # 弹出lightning配置，并创建默认配置
+        trainer_config = lightning_config.get("trainer", OmegaConf.create())  # 获取trainer配置，默认创建配置
+        trainer_config["accelerator"] = "ddp"  # 设置训练器加速器为"ddp"
+        for k in nondefault_trainer_args(opt):  # 遍历非默认的训练器参数
+            trainer_config[k] = getattr(opt, k)  # 设置训练器参数为opt中对应的属性值
+        if not "gpus" in trainer_config:  # 如果trainer_config中没有"gpus"键
+            del trainer_config["accelerator"]  # 删除"accelerator"键
+            cpu = True  # 设置cpu为True
         else:
-            gpuinfo = trainer_config["gpus"]
-            print(f"Running on GPUs {gpuinfo}")
-            cpu = False
-        trainer_opt = argparse.Namespace(**trainer_config)
-        lightning_config.trainer = trainer_config
+            gpuinfo = trainer_config["gpus"]  # 获取"gpus"键对应的值
+            print(f"Running on GPUs {gpuinfo}")  # 打印正在使用的GPU信息
+            cpu = False  # 设置cpu为False
+        trainer_opt = argparse.Namespace(**trainer_config)  # 创建argparse.Namespace对象，将trainer_config转换为命名空间
+        lightning_config.trainer = trainer_config  # 将trainer_config设置为lightning_config的trainer属性
 
         # model
-        #pdb.set_trace()
+        #pdb.set_trace() 
+        # 创建模型
         model = instantiate_from_config(config.model)#ldm.models.diffusion.ddpm.LatentDiffusion
 
         # trainer and callbacks
