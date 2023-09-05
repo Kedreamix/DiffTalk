@@ -31,68 +31,6 @@ def face_mask_square(img_shape, landmark_list, dtype='uint8'):
 
     return mask
 
-def diff_face_mask(image_path_, size = 256):
-    image = Image.open(image_path_)
-    if not image.mode == "RGB":
-        image = image.convert("RGB")
-
-    # default to score-sde preprocessing
-    img = np.array(image).astype(np.uint8)
-    image = Image.fromarray(img)
-    h, w = image.size
-    if size is not None:
-        image = image.resize((size, size), resample=PIL.Image.BICUBIC)
-
-    image = np.array(image).astype(np.uint8)
-    # image = (image / 127.5 - 1.0).astype(np.float32)
-
-    # landmarks = np.loadtxt(example["landmark_path_"], dtype=np.float32)
-    landmarks = get_landmarks(image_path_)
-    landmarks_img = landmarks[13:48]
-    landmarks_img2 = landmarks[0:4]
-    landmarks_img = np.concatenate((landmarks_img2, landmarks_img))
-    scaler = h / size
-    
-    #mask
-    mask = np.ones((size, size))
-    mask[(landmarks[30][1]).astype(int):, :] = 0.
-    mask = mask[..., None]
-    print(image.shape, mask.shape)
-    image_mask = (image * mask).astype(np.uint8)
-    # image_mask = (image_mask / 127.5 - 1.0).astype(np.float32)
-    
-    # Create a figure and axis
-    fig, ax = plt.subplots(1, figsize=(16, 16))
-
-    # Display the image
-    ax.imshow(image_mask)  # Convert back to [0, 1] range for display
-
-    # Plot landmarks
-    for i, landmark in enumerate(landmarks_img):
-        x, y = landmark[0], landmark[1]
-        ax.scatter(x, y, c='red', s=10)
-        ax.text(x, y, str(i), fontsize=8, color='red', ha='center', va='bottom')
-
-    # # Save the images
-    base_name = os.path.basename(image_path_).split('.')[0]
-    lm_filename = f"{base_name}_mask.jpg"
-    alm_filename = f"{base_name}_lm.jpg"
-
-    # # Save the image with landmarks
-    plt.savefig(lm_filename, bbox_inches='tight', pad_inches=0)
-    plt.clf()  # Clear the figure for the next plot
-    
-    fig, ax = plt.subplots(1, figsize=(16, 16))
-    # Plot landmarks
-    ax.imshow(image)
-    for i, landmark in enumerate(landmarks):
-        x, y = landmark[0], landmark[1]
-        ax.scatter(x, y, c='red', s=10)
-        ax.text(x, y, str(i), fontsize=8, color='red', ha='center', va='bottom')
-    plt.savefig(alm_filename, bbox_inches='tight', pad_inches=0)
-    plt.clf()  # Clear the figure for the next plot
-    
-    
 def get_landmarks(image_path_):
     fa = face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False)
     
@@ -109,7 +47,6 @@ def get_landmarks(image_path_):
     if len(preds) > 0:
         lands = preds[0].reshape(-1, 2)[:,:2]
         return lands
-
 
 def contour_extractor(path_to_img):
     # 68个关键点的索引
@@ -172,9 +109,70 @@ def contour_extractor(path_to_img):
 
     return landmark_list
 
+def diff_face_mask(image_path_, size = 256):
+    image = Image.open(image_path_)
+    if not image.mode == "RGB":
+        image = image.convert("RGB")
 
+    # default to score-sde preprocessing
+    img = np.array(image).astype(np.uint8)
+    image = Image.fromarray(img)
+    h, w = image.size
+    if size is not None:
+        image = image.resize((size, size), resample=PIL.Image.BICUBIC)
 
+    image = np.array(image).astype(np.uint8)
+    # image = (image / 127.5 - 1.0).astype(np.float32)
 
+    # landmarks = np.loadtxt(example["landmark_path_"], dtype=np.float32)
+    landmarks = get_landmarks(image_path_)
+    landmarks_img = landmarks[13:48]
+    landmarks_img2 = landmarks[0:4]
+    landmarks_img = np.concatenate((landmarks_img2, landmarks_img))
+    scaler = h / size
+    
+    #mask
+    mask = np.ones((size, size))
+    mask[(landmarks[30][1]).astype(int):, :] = 0.
+    mask = mask[..., None]
+    print(image.shape, mask.shape)
+    image_mask = (image * mask).astype(np.uint8)
+    # image_mask = (image_mask / 127.5 - 1.0).astype(np.float32)
+    
+    # Create a figure and axis
+    fig, ax = plt.subplots(1, figsize=(8, 8))
+
+    # Display the image
+    ax.imshow(image_mask)  # Convert back to [0, 1] range for display
+
+    # Plot landmarks
+    for i, landmark in enumerate(landmarks_img):
+        x, y = landmark[0], landmark[1]
+        ax.scatter(x, y, c='red', s=10)
+        ax.text(x, y, str(i), fontsize=8, color='red', ha='center', va='bottom')
+
+    # # Save the images
+    base_name = os.path.basename(image_path_).split('.')[0]
+    lm_filename = f"{base_name}_mask.jpg"
+    alm_filename = f"{base_name}_lm.jpg"
+    plt.axis('off')
+    plt.title("Mask of DiffTalk")
+    
+    # # Save the image with landmarks
+    plt.savefig(lm_filename, bbox_inches='tight', pad_inches=0)
+    plt.clf()  # Clear the figure for the next plot
+    
+    fig, ax = plt.subplots(1, figsize=(8, 8))
+    # Plot landmarks
+    ax.imshow(image)
+    for i, landmark in enumerate(landmarks):
+        x, y = landmark[0], landmark[1]
+        ax.scatter(x, y, c='red', s=10)
+        ax.text(x, y, str(i), fontsize=8, color='red', ha='center', va='bottom')
+    plt.title("Lankmark")
+    plt.axis('off')
+    plt.savefig(alm_filename, bbox_inches='tight', pad_inches=0)
+    
 def diff_face_mask2(image_path, image_size = [256,256]):
     image = Image.open(image_path)
     if not image.mode == "RGB":
@@ -201,16 +199,18 @@ def diff_face_mask2(image_path, image_size = [256,256]):
     
     base_name = os.path.basename(image_path).split('.')[0]
     output_path = f"{base_name}_mask2.jpg"
-    show_image(mask_img, output_path)
+    show_image(mask_img, output_path, "Mask For Mouth")
     # show_image(img, 'img.jpg')
 
-def show_image(img, output_path):
+def show_image(img, output_path, title=""):
     # Create a figure and axis
-    fig, ax = plt.subplots(1, figsize=(16, 16))
+    fig, ax = plt.subplots(1, figsize=(8, 8))
     ax.imshow(img, cmap = 'gray')
+    ax.set_title(title)
+    plt.axis('off')
     plt.savefig(output_path, bbox_inches='tight', pad_inches=0)
     
 # Example usage
-image_path = '/data/dengkaijun/workdirs/DiffTalk/data/HDTF/images/1_432.jpg'
+image_path = '../../data/HDTF/images/1_0.jpg'
 diff_face_mask(image_path)
 diff_face_mask2(image_path)
