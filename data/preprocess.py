@@ -14,7 +14,7 @@ def extract_images(vid_file,ori_imgs_dir,id=None,frame_total=None):
     # print('--- Step1: extract images from vids ---')
     cap = cv2.VideoCapture(vid_file)
     frame_num = 0
-    while(True):
+    for _ in tqdm(range(1500), leave = False, desc= os.path.basename(vid_file)):
         _, frame = cap.read()
         if frame is None:
             break
@@ -23,9 +23,9 @@ def extract_images(vid_file,ori_imgs_dir,id=None,frame_total=None):
         else:
             cv2.imwrite(os.path.join(ori_imgs_dir, id + '_' + str(frame_num) + '.jpg'), frame)
         frame_num = frame_num + 1
-        if frame_total:
-            if frame_num >= frame_total:
-                break
+        # if frame_total:
+            # if frame_num >= frame_total:
+                # break
     cap.release()
     # exit()
     
@@ -43,9 +43,12 @@ def detect_lands(ori_imgs_dir, lmd_dir):
                 preds = fa.get_landmarks(input)
                 # print(image_path)
                 pbar.set_description(f"Processing '{image_path}'")
-                if len(preds) > 0:
-                    lands = preds[0].reshape(-1, 2)[:,:2]
-                    np.savetxt(os.path.join(lmd_dir, image_path[:-3] + 'lms'), lands, '%f')
+                try:
+                    if len(preds) > 0:
+                        lands = preds[0].reshape(-1, 2)[:,:2]
+                        np.savetxt(os.path.join(lmd_dir, image_path[:-3] + 'lms'), lands, '%f')
+                except Exception as e:
+                    print(image_path,e)
             pbar.update(1)  # 更新进度条的进度
                     
 def extract_deepspeech_feature(vid_file, audio_dir, id): 
@@ -63,7 +66,7 @@ def get_mp4_files_in_folder(folder_path):
     for file in glob.glob(os.path.join(folder_path, '*.mp4')):
         if os.path.isfile(file):
             mp4_files.append(file)
-    
+    mp4_files.sort(key = lambda x:int(os.path.basename(x).split(".")[0]))
     return mp4_files
 
 def step1(ori_imgs_dir  = '../data/HDTF/images', start = 1):
@@ -114,13 +117,16 @@ def process_image(args):
     if image_path.endswith('.jpg') and not os.path.exists(os.path.join(lmd_dir, image_path[:-3] + 'lms')):
         input = io.imread(os.path.join(ori_imgs_dir, image_path))[:, :, :3]
         preds = fa.get_landmarks(input)
-        if len(preds) > 0:
-            lands = preds[0].reshape(-1, 2)[:,:2]
-            np.savetxt(os.path.join(lmd_dir, image_path[:-3] + 'lms'), lands, '%f')
+        try:
+            if len(preds) > 0:
+                lands = preds[0].reshape(-1, 2)[:,:2]
+                np.savetxt(os.path.join(lmd_dir, image_path[:-3] + 'lms'), lands, '%f')
+        except Exception as e:
+            print(image_path,"No faces were detected.")
     return os.path.basename(image_path)
 
 # 多线程
-def detect_lands_multithreaded(ori_imgs_dir, lmd_dir, num_threads = 4, num_gpu = 4):
+def detect_lands_multithreaded(ori_imgs_dir, lmd_dir, num_threads = 4, num_gpu = 1):
     print('--- Step 2: detect landmarks ---')
     image_list = os.listdir(ori_imgs_dir)
     image_list.sort(key=lambda x: int(x.split('_')[0]) * 1500 + int(x.split('_')[1][:-4]))
@@ -185,10 +191,10 @@ if __name__ == '__main__':
     os.makedirs(lmd_dir, exist_ok = True)
     os.makedirs(audio_dir, exist_ok = True)
     
-    num_workers = 1
+    num_workers = 8
     num_gpu = 1
     start = 1
-    end = 2
-    video_list = step1_multithreaded(video_dir, ori_imgs_dir, num_workers*2)
-    step2_multithreaded(ori_imgs_dir, lmd_dir, num_workers, num_gpu)
+    end = 279
+    # video_list = step1_multithreaded(video_dir, ori_imgs_dir, num_workers*2)
+    step2_multithreaded(ori_imgs_dir, lmd_dir, 2, num_gpu)
     step3_multithreaded(video_dir, audio_dir, start, end, num_workers)
