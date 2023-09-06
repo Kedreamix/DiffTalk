@@ -139,6 +139,8 @@ def diff_face_mask(image_path_, size = 256):
     image_mask = (image * mask).astype(np.uint8)
     # image_mask = (image_mask / 127.5 - 1.0).astype(np.float32)
     
+    image_mask = face_mask(image.shape, landmarks)
+    
     # Create a figure and axis
     fig, ax = plt.subplots(1, figsize=(8, 8))
 
