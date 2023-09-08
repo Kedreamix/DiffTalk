@@ -195,6 +195,6 @@ if __name__ == '__main__':
     num_gpu = 1
     start = 1
     end = 279
-    # video_list = step1_multithreaded(video_dir, ori_imgs_dir, num_workers*2)
-    step2_multithreaded(ori_imgs_dir, lmd_dir, 2, num_gpu)
+    video_list = step1_multithreaded(video_dir, ori_imgs_dir, num_workers*2)
+    step2_multithreaded(ori_imgs_dir, lmd_dir, 1, num_gpu)
     step3_multithreaded(video_dir, audio_dir, start, end, num_workers)

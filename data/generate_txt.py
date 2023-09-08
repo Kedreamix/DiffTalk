@@ -4,8 +4,8 @@ from tqdm import tqdm
 # 指定文件夹路径和输出文件名
 root = '../data/HDTF'
 folder_path = os.path.join(root,'audio_smooth')
-train_output_file = 'my_data_train.txt'
-test_output_file = 'my_data_test.txt'
+train_output_file = 'data_train.txt'
+test_output_file = 'data_test.txt'
 
 # 获取文件夹中的文件列表
 files = [file for file in tqdm(os.listdir(folder_path)) if file.lower().endswith(('npy')) and '_' in file]
@@ -30,8 +30,10 @@ with open(os.path.join(root, 'my_data.txt') , 'w') as f:
 
 print("Max numbers saved to data.txt")
 
-train_prefixes = [prefix for prefix, max_number in tqdm(max_numbers.items()) if max_number == 1499]
-test_prefixes = [prefix for prefix, max_number in tqdm(max_numbers.items()) if max_number != 1499]
+# train_prefixes = [prefix for prefix, max_number in tqdm(max_numbers.items()) if max_number == 1499]
+# test_prefixes = [prefix for prefix, max_number in tqdm(max_numbers.items()) if max_number != 1499]
+train_prefixes = [str(i) for i in range(1,100+1)]
+test_prefixes = [str(i) for i in range(101,150+1)]
 # print(train_prefixes)
 # 将排序后的文件名写入输出文件
 f_train = open(train_output_file, 'w')
@@ -45,7 +47,7 @@ with tqdm(total = len(sorted_files)) as pbar:
         # print(file_name.split('_'))
         if file_name.split('_')[0] in train_prefixes:
             f_train.write(file_name + '\n')
-        else:
+        elif file_name.split('_')[0] in test_prefixes:
             f_test.write(file_name + '\n')
         
 f_train.close()
