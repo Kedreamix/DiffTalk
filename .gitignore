@@ -3,3 +3,7 @@ __pycache_
 *.pyc
 src/*
 *.ckpt
+logs/*
+*.zip
+!/data/HDTF/videos/1.mp4
+/data/HDTF/videos/*.mp4
